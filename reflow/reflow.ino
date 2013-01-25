@@ -28,24 +28,46 @@ LiquidCrystal lcd(8,9,10,11,12,13);
 // volatile means it is going to be messed with inside an interrupt 
 // otherwise the optimization code will ignore the interrupt
 
-volatile long seconds_time = 0;  // this will get incremented once a second
+volatile long seconds_time = -1;  // this will get incremented once a second, -1 for no init
 volatile float the_temperature;  // in celsius
 volatile float previous_temperature;  // the last reading (1 second ago)
 
 // the current temperature
-float target_temperature;
+volatile float target_temperature;
 
 // we need this to be a global variable because we add error each second
 float Summation;        // The integral of error since time = 0
 
 int relay_state;       // whether the relay pin is high (on) or low (off)
 
+volatile long uptime;
+int opmode = 3;//opmode  is  0standby 1preheat 2ready 3on 
+#define phases 10
+int targettemp[phases]= {0,100,50,150,240,220,190,160,  0,  0};//these 10 values should be interpered as points on an xy coordinate system
+int targettime[phases]= {0,  5,10,15,20,30,35,40,181,480};//x is the time and y is the temperature.
+volatile long phaseseconds;//a counter in seconds starting at the begining of this phase
+volatile float m,b,b2;
+
+/*int pan1315sec[phases]  = {  0, 15,105,120,135,150,165,180,181,480};
+int pan1315temp[phases] = {150,150,190,220,240,220,190,160,0,0};
+int blank[phases] = {0,0,0,0,0,0,0,0,0,0};
+
+int (*targettemp[])(void) = {
+ pan1315temp,
+ blank 
+};
+int (*targettime[])(void)  = {
+  pan1315sec,
+  blank
+ };*/
+
+
 void setup() {  
   Serial.begin(9600); 
   Serial.println("Reflowduino!");
   
   // The data header (we have a bunch of data to track)
-  Serial.print("Time (s)\tTemp (C)\tError\tSlope\tSummation\tPID Controller\tRelay");
+  Serial.print("Time (s)\tTemp (C)\tSet Temp\tError\tSlope\tSummation\tPID Controller\tRelay");
  
    // Now that we are mucking with stuff, we should track our variables
   Serial.print("\t\tKp = "); Serial.print(Kp);
@@ -116,9 +138,12 @@ void loop() {
 
 // This is the Timer 1 CTC interrupt, it goes off once a second
 SIGNAL(TIMER1_COMPA_vect) { 
-  
+  uptime++;
   // time moves forward!
-  seconds_time++;
+
+   seconds_time++;
+   phaseseconds++; 
+
 
   // save the last reading for our slope calculation
   previous_temperature = the_temperature;
@@ -136,6 +161,18 @@ SIGNAL(TIMER1_COMPA_vect) {
         // to avoid windup, we only integrate within 5%
          Summation = 0;
    }
+   
+  //target temperature phase
+ int i;
+ for(i=0;i<phases;i++){
+ if(seconds_time==targettime[i]){//if we are on the cusp of a new leg set the variables that will remain the same throughout
+   m =(targettemp[i]-targettemp[i+1])/(targettime[i]-targettime[i+1]);//our slope is  rise over run(y2-y1)/(x2-x1)
+   b = targettemp[i]-(m*targettime[i]);//y-mx=b
+//     b2 = targettemp[i+1]-(m*targettime[i+1]);//y-mx=b
+   phaseseconds=0;//reset the phase counter
+   Serial.print("!");
+ }}
+  target_temperature = (m*(phaseseconds))+b;// y=mx+b y is our target temp in c, m and b we calculated from two time/temp points, and x is seconds
 
   // display current time and temperature
   lcd.clear();
@@ -156,16 +193,22 @@ SIGNAL(TIMER1_COMPA_vect) {
   
   // print out a log so we can see whats up
   Serial.print(seconds_time);
-  Serial.print("\t");
+  Serial.print("\t"); Serial.print("\t");
   Serial.print(the_temperature);
-  Serial.print("\t");
+  Serial.print("\t"); Serial.print("\t");
+  Serial.print(target_temperature);
+  Serial.print("\t"); Serial.print("\t");
   Serial.print(target_temperature - the_temperature); // the Error!
   Serial.print("\t");
-  Serial.print(previous_temperature - the_temperature); // the Slope of the Error
+  Serial.print(m); // the Slope of our reflow profile
   Serial.print("\t");
-  Serial.print(Summation); // the Integral of Error
-  Serial.print("\t");
+  Serial.print(b); // the Integral of Error
+  Serial.print("\t"); Serial.print("\t");
+  
+   Serial.print(b2); // the Integral of Error
+  Serial.print("\t"); Serial.print("\t");
+  
   Serial.print(Kp*(target_temperature - the_temperature) + Ki*Summation + Kd*(previous_temperature - the_temperature)); //  controller output
-  Serial.print("\t");
+  Serial.print("\t"); Serial.print("\t");
   Serial.println(relay_state);
 } 
