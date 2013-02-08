@@ -20,7 +20,8 @@
  USA
  */
 #include <LiquidCrystal.h>
-#include <max6675.h>
+//#include <max6675.h>
+#include "Adafruit_MAX31855.h"
 #include <Wire.h>
 #include <MsTimer2.h>
 // The pin we use to control the relay
@@ -41,7 +42,7 @@
 // Windup error prevention, 5% by default
 #define WINDUPPERCENT 0.05  
 
-MAX6675 thermocouple(MAX_CLK, MAX_CS, MAX_DATA);
+Adafruit_MAX31855 thermocouple(MAX_CLK, MAX_CS, MAX_DATA);
 
 // Classic 16x2 LCD used
 LiquidCrystal lcd(8,9,10,11,12,13);
