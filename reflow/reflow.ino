@@ -1,4 +1,3 @@
-#include <LiquidCrystal.h>
 #include "Adafruit_MAX31855.h"
 #include <Wire.h>
 
@@ -21,9 +20,6 @@
 #define WINDUPPERCENT 0.05  
 
 Adafruit_MAX31855 thermocouple(MAX_CLK, MAX_CS, MAX_DATA);
-
-// Classic 16x2 LCD used
-LiquidCrystal lcd(8,9,10,11,12,13);
 
 // volatile means it is going to be messed with inside an interrupt 
 // otherwise the optimization code will ignore the interrupt
@@ -57,20 +53,10 @@ void setup() {
   // ...and turn it off to start!
   digitalWrite(RELAYPIN, HIGH);
 
-  // Set up 16x2 standard LCD  
-  lcd.begin(16,2);
-
-  // clear the screen and print out the current version
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("Reflowduino!");
-  lcd.setCursor(0,1);
-  // compile date
-  lcd.print(__DATE__);
-  
+ 
   // pause for dramatic effect!
   delay(2000);
-  lcd.clear();
+
 
   // where we want to be
   target_temperature = 100.0;  // 100 degrees C
@@ -137,23 +123,6 @@ SIGNAL(TIMER1_COMPA_vect) {
          Summation = 0;
    }
 
-  // display current time and temperature
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Time: ");
-  lcd.print(seconds_time);
-  lcd.print(" s");
-  
-  // go to line #1
-  lcd.setCursor(0,1);
-  lcd.print(the_temperature);
-#if ARDUINO >= 100
-  lcd.write(0xDF);
-#else
-  lcd.print(0xDF, BYTE);
-#endif
-  lcd.print("C ");
-  
   // print out a log so we can see whats up
   Serial.print(seconds_time);
   Serial.print("\t");
