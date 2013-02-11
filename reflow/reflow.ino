@@ -2,8 +2,9 @@
 #include <Wire.h>
 
 // The pin we use to control the relay
-#define RELAYPIN 4
-
+#define RELAYPINbottom 4
+#define RELAYPINtop 3
+#define RELAYPINfan 2
 // The SPI pins we use for the thermocouple sensor
 #define MAX_CLK 5
 #define MAX_CS 6
@@ -16,14 +17,14 @@
 // the Derivative control constant 
 #define Kd  100
 
-// Windup error prevention, 5% by default
-#define WINDUPPERCENT 0.05  
+// Windup error prevention, 10% by default
+#define WINDUPPERCENT 0.1  
 
 Adafruit_MAX31855 thermocouple(MAX_CLK, MAX_CS, MAX_DATA);
 
 // volatile means it is going to be messed with inside an interrupt 
 // otherwise the optimization code will ignore the interrupt
-volatile long seconds_time = -60;  // this will get incremented once a second
+volatile long seconds_time = 0;  // this will get incremented once a second
 volatile float the_temperature;  // in celsius
 volatile float previous_temperature;  // the last reading (1 second ago)
 
@@ -35,37 +36,34 @@ float Summation;        // The integral of error since time = 0
 
 int relay_state;       // whether the relay pin is high (on) or low (off)
 
-int opmode = 3;//opmode  is  0? 1? 2? 3on 
-
+int opmode = 1;//opmode  is  0? 1preheat 2ready 3on 
+#define pretemp 100 // preheat to 75 C
+boolean preheat = false;
 //source for mapping  http://interface.khm.de/index.php/lab/experiments/nonlinear-mapping/
 float nodepoints[][2]= {
   {
-    -60,10              }
+    0,100      }
   ,{
-    -30,50              }
-  ,{
-    0,50  }
-  ,{
-    15,150                  } 
-  , {
-    105,190                  }
-  , {
-    120,220                  }
-  ,{
-    135,240                  }
-  ,{
-    150,220            }
-  ,{
-    165,190            }
-  ,{
-    180,160            }
-  ,{
-    181,1            }
-  ,{
-    480,1            }
-  ,
-  {
-    481,1        }
+   15,150                  } 
+   , {
+   105,190                  }
+   , {
+   120,220                  }
+   ,{
+   135,240                  }
+   ,{
+   150,220            }
+   ,{
+   165,190            }
+   ,{
+   180,160            }
+   ,{
+   181,1            }
+   ,{
+   480,1            }
+   ,
+   {
+   481,1        }
 };
 
 int phases = sizeof(nodepoints)/8;
@@ -94,9 +92,13 @@ void setup() {
   Serial.println(Kd);
 
   // the relay pin controls the plate
-  pinMode(RELAYPIN, OUTPUT);
+  pinMode(RELAYPINtop, OUTPUT);
+  pinMode(RELAYPINbottom, OUTPUT);
+  pinMode(RELAYPINfan, OUTPUT);
   // ...and turn it off to start!
-  digitalWrite(RELAYPIN, HIGH);
+  digitalWrite(RELAYPINtop, HIGH);
+  digitalWrite(RELAYPINbottom, HIGH);
+  digitalWrite(RELAYPINfan, LOW);
 
   // pause for dramatic effect!
   delay(2000);
@@ -143,11 +145,11 @@ void loop() {
 
   if (MV >= 1.0) {
     relay_state = HIGH;
-    digitalWrite(RELAYPIN, LOW);
+    digitalWrite(RELAYPINbottom, LOW);
   } 
   else {
     relay_state = LOW;
-    digitalWrite(RELAYPIN, HIGH);
+    digitalWrite(RELAYPINbottom, HIGH);
   }
 }
 
@@ -177,8 +179,29 @@ SIGNAL(TIMER1_COMPA_vect) {
     Summation = 0;
   }
 
+  if(opmode>=3){
+    target_temperature = reMap(nodepoints,seconds_time);
+  }
+  else{
+    if(opmode==1){
+      target_temperature = pretemp;
+     
+     
+      if(the_temperature >= pretemp)
+      {
+        Serial.println("Preheated, ready to run");
+        opmode = 2;
+      }
+    }else{
+      if(opmode==2){
+     if(Serial.available()){
+     opmode = 3;
+     
+     }
+     } 
+    }
+  }
 
-  target_temperature = reMap(nodepoints,seconds_time);
 
   // print out a log so we can see whats up
   Serial.print(seconds_time);
@@ -320,5 +343,7 @@ int reMap(float pts[10][2], int input) {
  }
  
  */
+
+
 
 
