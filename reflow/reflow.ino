@@ -37,33 +37,33 @@ float Summation;        // The integral of error since time = 0
 int relay_state;       // whether the relay pin is high (on) or low (off)
 
 int opmode = 1;//opmode  is  0? 1preheat 2ready 3on 
-#define pretemp 100 // preheat to 75 C
+#define pretemp 100 // preheat to 100 C
 boolean preheat = false;
 //source for mapping  http://interface.khm.de/index.php/lab/experiments/nonlinear-mapping/
 float nodepoints[][2]= {
   {
-    0,100      }
+    0,100          }
   ,{
-   15,150                  } 
-   , {
-   105,190                  }
-   , {
-   120,220                  }
-   ,{
-   135,240                  }
-   ,{
-   150,220            }
-   ,{
-   165,190            }
-   ,{
-   180,160            }
-   ,{
-   181,1            }
-   ,{
-   480,1            }
-   ,
-   {
-   481,1        }
+    15,150                      } 
+  , {
+    105,190                      }
+  , {
+    120,220                      }
+  ,{
+    135,240                      }
+  ,{
+    150,220                }
+  ,{
+    165,190                }
+  ,{
+    180,160                }
+  ,{
+    181,1                }
+  ,{
+    480,1                }
+  ,
+  {
+    481,1            }
 };
 
 int phases = sizeof(nodepoints)/8;
@@ -81,7 +81,7 @@ void setup() {
   //Serial.println("Draw");
 
   // The data header (we have a bunch of data to track)
-  Serial.print("Time (s)\tTemp (C)\tSet Temp\tError\tSlope\tSummation\tPID Controller\tRelay");
+  Serial.print("Time (s)\tTemp (C)\tSet Temp\tError\tPID Controller\tRelay");
 
   // Now that we are mucking with stuff, we should track our variables
   Serial.print("\t\tKp = "); 
@@ -90,6 +90,7 @@ void setup() {
   Serial.print(Ki);
   Serial.print(" Kd = "); 
   Serial.println(Kd);
+
 
   // the relay pin controls the plate
   pinMode(RELAYPINtop, OUTPUT);
@@ -140,17 +141,84 @@ void loop() {
   // proportional-derivative controller only
   MV = Kp * Error + Ki * Summation + Kd * Slope;
 
-  // Since we just have a relay, we'll decide 1.0 is 'relay on' and less than 1.0 is 'relay off'
-  // this is an arbitrary number, we could pick 100 and just multiply the controller values
+  //We have 2 heating elements on 2 seperate relays. 
+  //The top has a cold resistance of ~16 ohms so it should draw over 7.5 amps at 120v ac rms (+900 watts). 
+  //The bottom coil has a cold resistance of 23.5 ohms and should draw over 5 amps at 120v ac rms
+  //what kind of heating element is this? resistive? is CEMF playing into the equation? whats the hot resistance of the two coils?
+  //We have 4 states that go from least power consumption to most, top/botom
+  //1 00 off
+  //2 01 bottom on top off
+  //3 10 top on bottom off
+  //4 11 both on
+  // if (MV >= 1.0) {
+  //   relay_state = HIGH;
+  //   digitalWrite(RELAYPINbottom, LOW);
+  // } 
+  // else {
+  //   relay_state = LOW;
+  //   digitalWrite(RELAYPINbottom, HIGH);
+  // }
 
-  if (MV >= 1.0) {
-    relay_state = HIGH;
+  if(MV >= 200){ //state 4 both on
+        digitalWrite(RELAYPINtop, LOW);
+        digitalWrite(RELAYPINbottom, LOW);
+        relay_state = 3;
+      }
+  else {
+    if(MV >=125){//state 3 top on bottom off
+      digitalWrite(RELAYPINtop, LOW);
+      digitalWrite(RELAYPINbottom, HIGH);
+      relay_state = 2;
+    }
+    else{//state 2 bottom on top off
+    if (MV >= 50) {// state 2 bottom on top off
+    digitalWrite(RELAYPINtop, HIGH);
     digitalWrite(RELAYPINbottom, LOW);
+    relay_state = 1;
+  } 
+      else{//state 1 both off
+    if (MV < 50) {// state 2 bottom on top off
+    digitalWrite(RELAYPINtop, HIGH);
+    digitalWrite(RELAYPINbottom, HIGH);
+    relay_state = 0;
+  } 
+      }
+    }
+
+  }
+
+
+/*
+if (MV >= 85) {// state 2 bottom on top off
+    digitalWrite(RELAYPINtop, HIGH);
+    digitalWrite(RELAYPINbottom, LOW);
+    relay_state = 1;
   } 
   else {
-    relay_state = LOW;
-    digitalWrite(RELAYPINbottom, HIGH);
+    if(MV >=175){//state 3 top on bottom off
+      digitalWrite(RELAYPINtop, LOW);
+      digitalWrite(RELAYPINbottom, HIGH);
+      relay_state = 2;
+    }
+    else{//state 4 both on
+      if(MV >= 350){
+        digitalWrite(RELAYPINtop, LOW);
+        digitalWrite(RELAYPINbottom, LOW);
+        relay_state = 3;
+      }
+      else{//state 1 both off
+        if(MV < 85){
+          digitalWrite(RELAYPINtop, HIGH);
+          digitalWrite(RELAYPINbottom,  HIGH);
+          relay_state = 0;
+        }
+      }
+    }
+
   }
+
+
+*/
 }
 
 
@@ -185,20 +253,21 @@ SIGNAL(TIMER1_COMPA_vect) {
   else{
     if(opmode==1){
       target_temperature = pretemp;
-     
-     
+
+
       if(the_temperature >= pretemp)
       {
         Serial.println("Preheated, ready to run");
         opmode = 2;
       }
-    }else{
+    }
+    else{
       if(opmode==2){
-     if(Serial.available()){
-     opmode = 3;
-     
-     }
-     } 
+        if(Serial.available()){
+          opmode = 3;
+
+        }
+      } 
     }
   }
 
@@ -212,13 +281,9 @@ SIGNAL(TIMER1_COMPA_vect) {
   Serial.print("\t");
   Serial.print(target_temperature);
   Serial.print("\t"); 
-
-
   Serial.print("\t");
   Serial.print(target_temperature - the_temperature); // the Error!
   Serial.print("\t");
-
-  Serial.print("\t"); 
   Serial.print("\t");  
   Serial.print(Kp*(target_temperature - the_temperature) + Ki*Summation + Kd*(previous_temperature - the_temperature)); //  controller output
   Serial.print("\t"); 
@@ -343,6 +408,8 @@ int reMap(float pts[10][2], int input) {
  }
  
  */
+
+
 
 
 
