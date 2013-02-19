@@ -18,7 +18,7 @@
 #define Kd  100
 
 // Windup error prevention, 10% by default
-#define WINDUPPERCENT 0.1  
+#define WINDUPPERCENT 0.15  
 
 Adafruit_MAX31855 thermocouple(MAX_CLK, MAX_CS, MAX_DATA);
 
@@ -159,13 +159,13 @@ void loop() {
   //   digitalWrite(RELAYPINbottom, HIGH);
   // }
 
-  if(MV >= 200){ //state 4 both on
+  if(MV >= 100){ //state 4 both on
         digitalWrite(RELAYPINtop, LOW);
         digitalWrite(RELAYPINbottom, LOW);
         relay_state = 3;
       }
   else {
-    if(MV >=125){//state 3 top on bottom off
+    if(MV >=75){//state 3 top on bottom off
       digitalWrite(RELAYPINtop, LOW);
       digitalWrite(RELAYPINbottom, HIGH);
       relay_state = 2;
@@ -177,7 +177,7 @@ void loop() {
     relay_state = 1;
   } 
       else{//state 1 both off
-    if (MV < 50) {// state 2 bottom on top off
+    if (MV < 25) {// state 2 bottom on top off
     digitalWrite(RELAYPINtop, HIGH);
     digitalWrite(RELAYPINbottom, HIGH);
     relay_state = 0;
