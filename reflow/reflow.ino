@@ -37,33 +37,36 @@ float Summation;        // The integral of error since time = 0
 int relay_state;       // whether the relay pin is high (on) or low (off)
 
 int opmode = 1;//opmode  is  0? 1preheat 2ready 3on 
-#define pretemp 100 // preheat to 100 C
+#define pretemp 150 // preheat to 100 C
 boolean preheat = false;
 //source for mapping  http://interface.khm.de/index.php/lab/experiments/nonlinear-mapping/
-float nodepoints[][2]= {
+float nodepoints[][2]= {//
+
   {
-    0,100          }
-  ,{
-    15,150                      } 
-  , {
-    105,190                      }
-  , {
-    120,220                      }
-  ,{
-    135,240                      }
-  ,{
-    150,220                }
-  ,{
-    165,190                }
-  ,{
-    180,160                }
-  ,{
-    181,1                }
-  ,{
-    480,1                }
-  ,
-  {
-    481,1            }
+    0,150}//soak start, 0:00
+  ,{ // +0.27 degC/sec
+    180,200} //soak end, 3:00
+  , { // +0.14 degC/sec
+    300,217}// melting point 5:00
+  , {//+ 0.55 degC/sec
+    360,250}// peak temp of 6:00
+  , {//end of cycle
+    361,1}
+    
+//  ,{
+//    135,240}
+//  ,{
+//    150,220}
+//  ,{
+//    165,190}
+//  ,{
+//    180,160}
+//  ,{
+//    181,1}
+//  ,{
+//    480,1}
+//  ,
+//  {481,1}
 };
 
 int phases = sizeof(nodepoints)/8;
