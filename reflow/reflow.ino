@@ -52,6 +52,8 @@ float nodepoints[][2]= {//
     360,250}// peak temp of 6:00
   , {//end of cycle
     361,1}
+  , {
+362,1}
     
 //  ,{
 //    135,240}
